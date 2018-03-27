@@ -1,0 +1,31 @@
+<aura:component implements="force:lightningQuickAction,force:hasRecordId" controller="CreateBankAccountController">
+    
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="responseMessage" type="String"/>
+    <aura:attribute name="showErrorMessage" type="Boolean" default="false" />
+    <aura:attribute name="showSuccessMessage" type="Boolean" default="false" />
+    
+    <aura:handler name="init" value="{!this}" action="{!c.init}"/>
+    
+    <aura:if isTrue="{!or(v.showErrorMessage, v.showSuccessMessage)}">
+        <div class="{!v.showErrorMessage ?
+                    'slds-modal__content slds-p-around--medium slds-theme--error' :
+                    'slds-modal__content slds-p-around--medium slds-theme--success'}"
+        >
+            <div >
+                <p>{!v.responseMessage}</p>
+            </div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.showSpinner}">
+        <div class="slds-spinner--brand slds-spinner slds-spinner--medium spinner"
+             role="alert"
+        >
+            <span class="slds-assistive-text">Loading</span>
+            <div class="slds-spinner__dot-a"></div>
+            <div class="slds-spinner__dot-b"></div>
+        </div>
+    </aura:if>
+    
+</aura:component>

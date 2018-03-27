@@ -1,0 +1,13 @@
+.THIS .spinner {
+    top: 50%;
+    left: 50%;
+}
+.THIS .field-position {
+    margin-top: 10px;
+}
+.THIS .button-position {
+    float: right;
+}
+.THIS .field-width {
+    max-width: 150px;
+}

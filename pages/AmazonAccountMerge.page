@@ -1,0 +1,254 @@
+<apex:page showHeader="true" sidebar="true" standardController="Account" extensions="AmazonAccountMergeController" title="Account Merge">
+
+	<style type="text/css">
+	.customPopup {
+		background-color: #000;
+		opacity: 0.5;
+		
+		z-index: 9990;
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		min-height: 100%;
+		min-width: 100%;
+	}
+	.closeButton {
+		float: right;
+	}
+
+	.popupDiv {
+		position:fixed;
+		top: 50%;
+		left: 50%;
+		width:30em;
+		height:10em;
+		margin-top: -5em; /*set to a negative number 1/2 of your height*/
+		margin-left: -15em; /*set to a negative number 1/2 of your width*/
+		border: 1px solid #ccc;
+		background-color: #fff;
+		z-index: 10000;
+
+		text-align: center;
+		vertical-align:middle;
+	}
+
+	.centeredContent {
+		
+	}
+
+	.selectableDiv {
+		background-color: #fff;
+	}
+
+	.selectedDiv {
+		background-color: #99ffb9;
+	}
+
+	.selectableDiv:hover {
+		background-color: #e6e6e6;
+	}
+
+	.selectedDiv:hover {
+		background-color: #99ffb9;
+	}
+
+	</style>
+
+	<apex:form id="mainForm">
+		<apex:pageMessages escape="false"/>
+		<apex:pageBlock id="mainPageBlock" title="Merge Accounts" rendered="{!AccNotSelected}">
+
+			<apex:pageBlockButtons location="top">
+				<apex:commandButton onclick="getSelectedRow(); return false;" value="Merge" disabled="{!isConflictsToMerge}"/>
+				<apex:commandButton action="{!cancel}" value="Cancel"/>
+			</apex:pageBlockButtons>
+
+			<apex:pageBlock title="High Probability Accounts" >
+				<apex:variable value="{!0}" var="rowNum"/>
+				<apex:pageBlockTable value="{!highProbability}" var="account" rendered="{!IF(highProbability.size != 0, true, false)}">
+					<apex:column ><input type="checkbox" id="highCbx--{!account.Id}" onchange="resetCheckboxes(this)"/></apex:column>
+					<apex:column ><apex:outputLink value="/{!account.Id}" target="_blank">{!account.FirstName}&nbsp;{!account.LastName}</apex:outputLink></apex:column>
+					<apex:column value="{!account.BillingCountry}"/>
+					<apex:column value="{!account.BillingState}"/>
+					<apex:column value="{!account.BillingCity}"/>
+					<apex:column value="{!account.BillingStreet}"/>
+					<apex:column value="{!account.BillingPostalCode}"/>
+					<apex:variable var="rowNum" value="{!rowNum + 1}"/>
+				</apex:pageBlockTable>
+				<apex:outputText value="There are no records to display." rendered="{!IF(highProbability.size == 0, true, false)}"/>
+			</apex:pageBlock>
+
+			<apex:pageBlock title="Medium Probability Accounts">
+				<apex:variable value="{!0}" var="rowNum"/>
+				<apex:pageBlockTable value="{!mediumProbability}" var="account" rendered="{!IF(mediumProbability.size != 0, true, false)}">
+					<apex:column ><input type="checkbox" id="mediumCbx--{!account.Id}" onchange="resetCheckboxes(this)"/></apex:column>
+					<apex:column ><apex:outputLink value="/{!account.Id}" target="_blank">{!account.FirstName}&nbsp;{!account.LastName}</apex:outputLink></apex:column>
+					<apex:column value="{!account.ShippingCountry}"/>
+					<apex:column value="{!account.ShippingState}"/>
+					<apex:column value="{!account.ShippingCity}"/>
+					<apex:column value="{!account.ShippingStreet}"/>
+					<apex:column value="{!account.ShippingPostalCode}"/>
+					<apex:variable var="rowNum" value="{!rowNum + 1}"/>
+				</apex:pageBlockTable>
+				<apex:outputText value="There are no records to display." rendered="{!IF(mediumProbability.size == 0, true, false)}"/>
+			</apex:pageBlock>
+
+		</apex:pageBlock>
+
+		<apex:outputPanel id="popup">
+			<apex:outputPanel rendered="{!displayPopup}">
+				<apex:outputPanel id="popInnerOutputPnl" layout="block"  styleClass="customPopup"/>			
+				<div class="popupDiv">
+					<p>Are you sure you want to confirm merge?</p>
+					<p>
+						<apex:commandButton value="Confirm Merge" onclick="confirmMerge();" rerender="popup"/>
+						<apex:commandButton value="Cancel" title="Close the popup" action="{!cancelPopup}" rerender="popup"/>
+					</p>				
+				</div>
+			</apex:outputPanel>
+		</apex:outputPanel>
+
+		<apex:pageBlock title="Account Fields" id="valuesBlock" rendered="{! NOT(AccNotSelected) }">
+			<apex:pageBlockButtons location="both">
+				<apex:commandButton value="Confirm" action="{!showPopup}" rerender="popup"/>				
+				<apex:commandButton action="{!cancelMerge}" value="Cancel"/>
+			</apex:pageBlockButtons>
+			
+			<div id="mergeTable" style="display: table; background-color: #fff; margin: auto; width: 50%;"></div>
+			
+
+
+			<script type="text/javascript">
+				var resultValues;
+
+				'use strict';
+				var MasterSimilarDictionary = new Map();
+
+				var dataToMerge = JSON.parse('{!JSONDataToMerge}');
+				resultValues = dataToMerge.masterValues;
+				//debug incoming merge data of two accounts
+				// console.log(dataToMerge);
+				
+				var divTable = document.getElementById('mergeTable');
+
+				for (var i = 0; i < dataToMerge.fieldNames.length; i++) {
+					var fieldName = dataToMerge.fieldNames[i];
+					var divRow = document.createElement('div');
+					divRow.style.cssText = 'display: table-row;';
+
+					var cellStyle = 'display: table-cell; padding: 5px; border-bottom: 2px solid #f0f0f0;';
+
+					var divCell = document.createElement('div');
+					divCell.style.cssText = cellStyle;
+					divCell.innerHTML = dataToMerge.nameLabelMap[fieldName];
+
+					var divCell1 = document.createElement('div');
+					divCell1.style.cssText = cellStyle + ' cursor: pointer; cursor: hand;';
+					divCell1.innerText = dataToMerge.masterValues[fieldName];
+					divCell1.onclick = function() {
+						selectFieldValue(this);
+					}
+					divCell1.setAttribute('id', fieldName);
+					divCell1.className = 'selectedDiv';
+
+					var divCell2 = document.createElement('div');
+					divCell2.style.cssText = cellStyle + ' cursor: pointer; cursor: hand;';
+					divCell2.innerText = dataToMerge.similarValues[fieldName];
+					divCell2.onclick = function() {
+						selectFieldValue(this);
+					}
+					divCell2.setAttribute('id', fieldName);
+					divCell2.className = 'selectableDiv';
+
+					divRow.appendChild(divCell);
+					divRow.appendChild(divCell1);
+					divRow.appendChild(divCell2);
+					divTable.appendChild(divRow);
+
+					MasterSimilarDictionary.set(divCell1, divCell2);
+					MasterSimilarDictionary.set(divCell2, divCell1);
+				}
+
+				function selectFieldValue(el) {
+
+					MasterSimilarDictionary.get(el).className = 'selectableDiv';
+
+					el.className = 'selectedDiv';
+					resultValues[el.id] = el.innerText;
+
+					//debug changes after select value from column
+					// console.log(resultValues);
+				}
+
+				function confirmMerge() {
+					var jsonStr = JSON.stringify(resultValues);
+					confirmMergeAF(jsonStr);
+				}
+			</script>
+			
+		</apex:pageBlock>
+
+		<apex:actionFunction action="{!doMerge}" name="doMergeAF" reRender="mainForm">
+			<apex:param name="similarAccId" assignTo="{!similarAccId}" value=""/>
+		</apex:actionFunction>
+
+		<apex:actionFunction action="{!confirmMerge}" name="confirmMergeAF" reRender="mainForm">
+			<apex:param name="result" assignTo="{!jsonMergedValues}" value=""/>
+		</apex:actionFunction>
+
+	</apex:form>
+
+	<script type="text/javascript">
+		'use strict';
+		function resetCheckboxes(element) {
+			var medCbxs = getElementsStartsWithId("mediumCbx--");
+			var highCbxs = getElementsStartsWithId("highCbx--");
+
+			for (var i = 0; i < medCbxs.length; i++) {
+				if (medCbxs[i].id != element.id)
+					medCbxs[i].checked = false;
+			}
+			for (var i = 0; i < highCbxs.length; i++) {
+				if (highCbxs[i].id != element.id)
+					highCbxs[i].checked = false;
+			}
+		}
+
+		function getElementsStartsWithId(id) {
+			var children = document.body.getElementsByTagName('*');
+			var elements = [], child;
+			for (var i = 0, length = children.length; i < length; i++) {
+				child = children[i];
+				if (child.id.substr(0, id.length) == id) {
+					elements.push(child);
+				}
+			}
+			return elements;
+		}
+
+		function getSelectedRow() {
+			var medCbxs = getElementsStartsWithId("mediumCbx--");
+			var highCbxs = getElementsStartsWithId("highCbx--");
+
+			var selectedCbxId;
+			for (var i = 0; i < medCbxs.length; i++) {
+				if (medCbxs[i].checked == true)
+					selectedCbxId = medCbxs[i].id;
+			}
+
+			for (var i = 0; i < highCbxs.length; i++) {
+				if (highCbxs[i].checked == true)
+					selectedCbxId = highCbxs[i].id;
+			}
+
+			if (!selectedCbxId) {
+				return;
+			}
+
+			selectedCbxId = selectedCbxId.replace(/mediumCbx--/g, '');
+			selectedCbxId = selectedCbxId.replace(/highCbx--/g, '');
+
+			doMergeAF(selectedCbxId);
+		}
+	</script>
+</apex:page>

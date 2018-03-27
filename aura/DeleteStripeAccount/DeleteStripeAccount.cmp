@@ -1,0 +1,37 @@
+<aura:component implements="force:lightningQuickAction,force:hasRecordId" controller="DeleteStripeAccountController">
+    
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="responseMessage" type="String"/>
+    <aura:attribute name="showErrorMessage" type="Boolean" default="false" />
+    <aura:attribute name="showSuccessMessage" type="Boolean" default="false" />
+    
+    <aura:if isTrue="{!or(v.showErrorMessage, v.showSuccessMessage)}">
+        <div class="{!v.showErrorMessage ?
+                    'slds-modal__content slds-p-around--medium slds-theme--error' :
+                    'slds-modal__content slds-p-around--medium slds-theme--success'}"
+        >
+            <div >
+                <p>{!v.responseMessage}</p>
+            </div>
+        </div>
+        <aura:set attribute="else">
+            <div class="slds-modal__content slds-p-around--medium ">
+                <p>Are you sure want to delete Franchisee Account on Stripe?</p>
+            </div>
+            <div>
+                <lightning:button label="Delete" variant="brand" onclick="{!c.deleteAcc}" class="field-position button-position"/>
+            </div>
+        </aura:set>
+    </aura:if>
+
+    <aura:if isTrue="{!v.showSpinner}">
+        <div class="slds-spinner--brand slds-spinner slds-spinner--medium spinner"
+             role="alert"
+        >
+            <span class="slds-assistive-text">Loading</span>
+            <div class="slds-spinner__dot-a"></div>
+            <div class="slds-spinner__dot-b"></div>
+        </div>
+    </aura:if>
+    
+</aura:component>
